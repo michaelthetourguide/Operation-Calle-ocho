@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operation: Calle Ocho</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --background-color: #fdfdf5; /* High-contrast off-white */
+            --page-color: #ffffff;
+            --text-color: #1a1a1a; /* Darker text for contrast */
+            --stamp-color: #b00202;
+            --accent-color: #0d47a1; 
+            --correct-color: #006400;
+            --incorrect-color: #b00202;
+            --font-thematic: 'Special Elite', 'Courier New', monospace;
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+        body { 
+            background-color: var(--background-color); 
+            font-family: var(--font-thematic); 
+            color: var(--text-color); 
+            margin: 0; 
+            padding: 20px 10px; 
+            display: flex; 
+            /* NEW: Stack children vertically */
+            flex-direction: column; 
+            /* NEW: Center children horizontally in the column */
+            align-items: center; 
+            line-height: 1.7; 
+        }
+        .dossier-container { max-width: 600px; width: 100%; }
+        .page { 
+            background-color: var(--page-color); 
+            background-image: url('https://www.transparenttextures.com/patterns/paper-fibers.png'); 
+            padding: 25px 30px 40px 30px; 
+            margin-bottom: 20px; 
+            border: 1px solid #ddd; 
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1); 
+            min-height: 80vh; 
+            position: relative; 
+        }
+        .page-footer { position: absolute; bottom: 10px; left: 30px; font-size: 0.8em; }
+        .redacted { background-color: #000; color: #000; user-select: none; padding: 0 2px; display: inline-block; }
+        h1, h2, h3 { font-weight: bold; }
+        h1 { font-size: 2.5em; text-align: center; margin-bottom: 5px; }
+        h2 { font-size: 2em; text-align: center; margin: 10px 0 20px 0; border-bottom: 2px solid var(--text-color); padding-bottom: 10px; }
+        h3 { font-size: 1.3em; letter-spacing: 1px; text-transform: uppercase; color: var(--accent-color); margin-top: 20px; margin-bottom: 10px; }
+        .stamp { color: var(--stamp-color); border: 3px solid var(--stamp-color); padding: 5px 10px; font-size: 1.5em; display: block; text-align: center; transform: rotate(-5deg); margin: 15px auto; width: fit-content; }
+        ul { list-style-type: '▸ '; padding-left: 20px; }
+        .fragment-box { margin-top: 15px; padding: 10px 15px 15px 15px; background-color: #f7f7f7; border: 2px dashed #ccc; border-radius: 4px; text-align: center; }
+        .fragment-input-group { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 5px; }
+        .hint-display { text-align: left; margin-top: 15px; padding: 10px; font-style: italic; color: #444; border: 1px solid #ddd; background: #fafafa; }
+        .feedback { margin-top: 10px; font-size: 1.1em; font-weight: bold; height: 20px; }
+        .feedback-correct { color: var(--correct-color); }
+        .feedback-incorrect { color: var(--incorrect-color); }
+        hr.section-divider { border: 0; height: 1px; background-color: #e0e0e0; margin: 25px 0; }
+        details { margin-top: 20px; background-color: #fdfdf5; border: 1px solid #e0e0e0; padding: 10px 15px; border-radius: 4px; }
+        details summary { cursor: pointer; font-weight: bold; color: var(--accent-color); font-size: 1em; }
+        .nav-container { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+        .nav-arrow { font-family: 'Times New Roman', Times, serif; font-size: 3em; font-weight: bold; text-decoration: none; color: var(--accent-color); padding: 5px 20px; cursor: pointer; transition: all 0.3s ease; line-height: 1; border-radius: 5px;}
+        .hidden { display: none; }
+        .final-assembly-box { display: flex; justify-content: center; gap: 5px; margin-top: 20px; }
+        .final-assembly-box span { width: 40px; height: 40px; border-bottom: 2px solid var(--text-color); font-size: 2em; text-align: center; line-height: 40px; }
+        .camera-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); z-index: 1000; display: none; justify-content: center; align-items: center; flex-direction: column; }
+        .camera-modal.active { display: flex; }
+        #camera-view, #photo-preview { max-width: 90%; max-height: 70vh; border: 2px solid #fff; background-color: #000; }
+        #approval-controls { display: flex; gap: 20px; margin-top: 20px;}
+        .photo-collage { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 20px; padding:10px; border: 1px solid #ccc; background: #fff;}
+        .photo-collage img, .photo-collage .placeholder { width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border: 2px solid #333; }
+        .photo-collage .placeholder { display: flex; align-items: center; justify-content: center; background: #ccc; font-size: 0.8em; text-align: center; }
+        .tab-buttons { border-bottom: 2px solid #aaa; display: flex; margin-bottom: 20px; gap: 5px; }
+        .tab-link { background: #e9e9e9; border: 1px solid #aaa; border-bottom: none; padding: 8px 12px; font-size: 1.1em; cursor: pointer; border-radius: 6px 6px 0 0; position: relative; top: 2px; }
+        .tab-link:hover { background-color: #f5f5f5; }
+        .tab-link.active { background: var(--page-color); border-bottom: 2px solid var(--page-color); z-index: 2; font-weight: bold; color: var(--accent-color); }
+        .tab-link:disabled { color: #aaa; cursor: not-allowed; background: #f5f5f5; }
+
+        /* --- FONT & STYLE OVERRIDE FOR INTERACTIVE ELEMENTS --- */
+        #start-mission-btn, .verify-btn, .hint-btn, .evidence-btn, #capture-btn, #retake-btn, #confirm-btn, .tab-link, .fragment-input, .fragment-box > label, .final-assembly-box span, details summary, .stamp, .coded-message, .feedback, .photo-collage .placeholder {
+            font-family: var(--font-thematic) !important;
+        }
+        #start-mission-btn { display: block; width: 100%; padding: 15px; margin-top: 15px; font-size: 1.5em; border: none; cursor: pointer; background-color: #1a1a1a; color: white; }
+        #capture-btn, #retake-btn, #confirm-btn { padding: 15px 30px; font-size: 1.2em; border-radius: 5px; }
+        .verify-btn { padding: 10px 20px; font-size: 1.2em; border: 2px solid var(--text-color); cursor: pointer; background-color: #e0e0e0; color: var(--text-color); height: 84px; }
+        .hint-btn, .evidence-btn { background-color: #fff; border: 1px solid #aaa; color: #555; font-size: 1em; margin-top: 15px; padding: 8px 15px; cursor: pointer; }
+        .fragment-input { width: 80px; height: 80px; font-size: 3em; text-align: center; text-transform: uppercase; border: 2px solid #333; background-color: #fff; }
+        .proceed-btn-style {
+            background-color: var(--correct-color);
+            color: white !important;
+            padding: 10px 20px !important;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 1.5em !important;
+            font-family: var(--font-thematic) !important;
+        }
+        .proceed-btn-style:hover {
+            background-color: #005000;
+        }
+
+        /* --- STYLES FOR FINAL DEBRIEF PAGE (CONSISTENT THEME) --- */
+        .final-message-box {
+            background-color: var(--background-color); 
+            border: 2px dashed var(--accent-color); 
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 4px; 
+            text-align: center;
+        }
+
+        .final-message-box h3 {
+            color: var(--accent-color); 
+            margin-top: 0;
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+            font-family: var(--font-thematic) !important; 
+        }
+
+        .final-assembly-box span {
+            font-family: var(--font-thematic) !important; 
+            border-bottom: 2px solid var(--text-color); 
+        }
+
+        .final-debrief-text {
+            text-align: center;
+            margin-top: 15px;
+            font-style: italic; 
+            color: var(--text-color); 
+            font-family: var(--font-thematic) !important; 
+        }
+
+        .final-debrief-instructions {
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: var(--accent-color); 
+            font-family: var(--font-thematic) !important; 
+        }
+
+        .quote-text {
+            text-align: center;
+            margin-top: 25px;
+            color: var(--stamp-color); 
+            font-size: 1.2em; 
+            font-style: italic; 
+            font-family: var(--font-thematic) !important; 
+            line-height: 1.4;
+        }
+        /* Style for the download button */
+        .download-pdf-btn-style {
+            background-color: var(--accent-color);
+            color: white !important;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 1.2em;
+            font-family: var(--font-thematic) !important;
+            cursor: pointer;
+            width: 100%; /* Make it full width like the start button */
+            margin-top: 15px;
+        }
+        .download-pdf-btn-style:hover {
+            background-color: #0b3a7d;
+        }
+    </style>
+</head>
+<body>
+
+<div class="dossier-container">
+    </div>
+
+<div id="page-final-debrief" class="page hidden" style="max-width: 600px; width: 100%; margin: 20px auto;">
+    <h2>MISSION DEBRIEFING</h2>
+    <p><em>Agent, your fieldwork is complete. You have successfully recovered all 8 fragments of the master code word. Assemble them in sequence to decrypt the final message.</em></p>
+    
+    <div class="final-message-box">
+        <h3>The Master Code Word:</h3>
+        <div class="final-assembly-box">
+            <span>L</span>
+            <span>I</span>
+            <span>B</span>
+            <span>E</span>
+            <span>R</span>
+            <span>T</span>
+            <span>A</span>
+            <span>D</span>
+        </div>
+        <p class="final-debrief-text">**LIBERTAD** (n. Spanish) Liberty; Freedom. A cause championed by generations who sought refuge and a new beginning in the vibrant heart of Little Havana. Your mission contributes to their enduring legacy.</p>
+    </div>
+
+    <hr class="section-divider">
+    
+    <h3>Mission Accomplishments: Agent Field Selfies</h3>
+    <div id="photo-collage-container" class="photo-collage"></div>
+    <button id="download-pdf-btn" class="download-pdf-btn-style" style="display:none;" onclick="downloadCollageAsPDF()">Download Mission Souvenir (PDF)</button>
+    
+    <hr class="section-divider">
+    
+    <p class="final-debrief-text">Your dedication in the field has been noted, Agent. The spirit of **LIBERTAD** lives on through agents like you.</p>
+    <p class="final-debrief-instructions">Proceed to your initial handler (the doorman) and provide the master code word "LIBERTAD" to receive your final reward and officially conclude Operation: Calle Ocho. This concludes your classified mission debriefing.</p>
+    <div class="stamp" style="border-color: var(--correct-color); color: var(--correct-color); transform: rotate(2deg);">CASE CLOSED</div>
+    <div class="nav-container">
+        <a class="nav-arrow" onclick="showPage(8)">&lt;</a> 
+    </div>
+    <div class="page-footer">FILE: C-O-8-CLOSED</div>
+</div>
+
+
+<div id="camera-modal" class="camera-modal">
+    <video id="camera-view" autoplay playsinline></video>
+    <img id="photo-preview" class="hidden" alt="Photo Preview">
+    <div id="capture-controls">
+        <button id="capture-btn" class="verify-btn">Capture Evidence</button>
+    </div>
+    <div id="approval-controls" class="hidden">
+        <button id="retake-btn" class="hint-btn">Retake</button>
+        <button id="confirm-btn" class="evidence-btn" style="background-color: var(--correct-color); color: white;">Confirm & Save</button>
+    </div>
+</div>
+<canvas id="photo-canvas" class="hidden"></canvas>
+
+
+<script>
+    const dossierContainer = document.querySelector('.dossier-container');
+    let currentPage = 0;
+    const totalPages = 10; // Total pages 0-9 for the dynamic part of the game.
+
+    const pageData = [
+        { type: 'cover' }, { type: 'briefing' },
+        { type: 'objective', index: 0 }, { type: 'objective', index: 1 },
+        { type: 'objective', index: 2 }, { type: 'objective', index: 3 },
+        { type: 'objective', index: 4 }, { type: 'objective', index: 5 },
+        { type: 'objective', index: 6 }, { type: 'objective', index: 7 }, // Objective 8 (index 7)
+    ];
+
+    const objectiveData = [
+        { title: 'OBJECTIVE 1: SUNRISE CROW', task: "Examine the rooster's tail feathers. You will find two words written there—the famous name of this street. In the first word, transmit the third letter.", briefing: "The rooster is a potent symbol in Cuban culture, representing strength and pride. These statues are part of the 'Rooster Walk' project, designed to celebrate the vibrancy of the community.", deepDive: "The 2002 'Rooster Walk' was curated by a local artist and placed numerous statues along Calle Ocho, each decorated by a different artist. It was an effort to create unique cultural landmarks and draw attention to the artistic soul of Little Havana following guidelines set under Protocol 7-B.", nextTarget: `"Find a wall of memories, buried deep. It's mostly gray, a time gone by, But a patch of color will catch your eye. A famous shirt is in that square, Your second clue is waiting there."` },
+        { title: 'OBJECTIVE 2: THREAD & INK', task: "In the colorful center of the mural, find the text that completes this phrase: 'GUAYABERA ______ of the WORLD'. In that missing word, transmit the fourth letter.", briefing: "The Guayabera shirt, with its four pockets and intricate pleats (alforzas), is considered elegant formal wear in Cuba and across the Caribbean.", deepDive: "One origin story claims it evolved from Spanish military uniforms, with the pockets added by farmers to carry guavas (guayabas). Another traces it to the Yayabo River region. Its status as a cultural icon makes it a point of pride and a symbol of identity. Source: Havana Field Office.", nextTarget: `"A somber memorial you next have to find, For the Bay of Pigs mission, a moment in time. A flame burns eternal for a brigade so brave, Your objective is etched where their promise is saved."` },
+        { title: 'OBJECTIVE 3: ECHOES OF THE PAST', task: "At the top of the monument, a single, powerful word stands alone, representing the island nation. Transmit the third letter of this word.", briefing: "This memorial honors the soldiers of Brigade 2506 and their role in the Bay of Pigs Invasion. The eternal flame represents a vow to one day see a free Cuba.", deepDive: "The Bay of Pigs Invasion (1961) was a covert operation, codenamed Operation Zapata, where the CIA armed and trained Cuban exiles to overthrow the Castro regime. The mission's failure had significant political ramifications and deeply affected the exile community, strengthening their anti-Castro resolve.", nextTarget: `"Now leave the main road, a detour you must take, Proceed down the boulevard for your next mission's sake. Head south along this avenue, where tributes are found, Until an island's outline appears on the ground."` },
+        { title: 'OBJECTIVE 4: ISLAND SILHOUETTE', task: "Beneath the map, you will find an inspirational quote by the Cuban national hero, José Martí. Locate this quote. What is the first letter of the third word?", briefing: "José Martí is a revered national hero, a poet and revolutionary philosopher who became a symbol of Cuba's fight for independence from Spain.", deepDive: "Martí's writings, including the poetry collection 'Versos Sencillos', fueled the independence movement. The lyrics for the famous song 'Guantanamera' are adapted from this work. He was killed in battle in 1895, cementing his status as a martyr for Cuban liberty.", nextTarget: `"This boulevard's secrets are now in your possession, Return to the main road, for the mission's progression. Set your heading to West, resume the main quest, Past the golden arches, put your skills to the test. At the Welcome Center's wall, a dancer awaits your call."` },
+        { title: 'OBJECTIVE 5: CRIMSON DANCER', task: "The lady in the mural wears a vibrant dress. What is the first letter of the primary color of her dress?", briefing: "This mural is an advertisement for Bacardi rum. The Bacardi family were vocal opponents of the Castro regime and fled Cuba after their assets were seized.", deepDive: "The Bacardi family, originally from Catalonia, founded their distillery in Santiago de Cuba in 1862. After their assets were nationalized under Law 890 in 1960, they fled the island and used their global influence to support anti-communist movements, making their business operations a subject of interest for multiple intelligence agencies.", nextTarget: `"Where ivory tiles on the table-tops meet, And old-timers gather, escaping the heat. A General's statue keeps watch on the game, The plaque at his feet holds the key to his fame; Your next piece of intel is found in his name."` },
+        { title: 'OBJECTIVE 6: IVORY STRATEGY', task: "Locate the bust of General Máximo Gómez. At its base is a bronze plaque. On the second line, there is a prominent Spanish word that translates to 'Liberator'. Transmit the sixth letter of this Spanish word.", briefing: "Máximo Gómez Park, known affectionally as Domino Park, is a social cornerstone of the community, where the clatter of tiles is the daily soundtrack.", deepDive: "Dominoes are not just a game but a vital part of social life in Cuba. The 'double-nine' set is most common. The park is a protected space where the traditions are maintained. It's considered a vital hub for community intel, as noted in field report 4B-7.", nextTarget: `"Above the sidewalk, a white oval gleams, with bold red letters, fulfilling a dream. It speaks of craftsmanship, rich and deep, a fragrant secret for you to keep."` },
+        { title: 'OBJECTIVE 7: SMOKE & MIRRORS', task: "Locate the white oval sign hanging above the sidewalk. Read the words curving along the top of the oval. One of these words is the English name for the plant that produces cigars. What is the fourth letter of that English word?", briefing: "A 'torcedor' (cigar roller) is a highly respected artisan. After the revolution, many skilled torcedores fled to places like Miami, bringing their craft with them.", deepDive: "Cuban cigars are renowned due to the unique climate and soil of regions like Pinar del Río. The trade is still considered high-value for intelligence gathering and has been used as a cover for operative movements for decades. Status: ACTIVE.", nextTarget: `"Your final target is hidden in plain sight, where this whole mission first came to light. Go back to the building where your journey began, upstairs, an exhibit will finish the plan."` },
+        { title: 'FINAL OBJECTIVE: SAFE HARBOR', task: "Go upstairs to the permanent exhibit on the far south wall. Find the collage that includes a prominent newspaper clipping from the 'MIAMI NEWS'. On this collage, find the only boat whose name ends in a Roman numeral. What is the first letter of the second part of this boat's name?", briefing: "This exhibit tells the story of the 1980 'Mariel Boatlift,' a mass emigration of Cubans who departed from Mariel Harbor for the United States.", deepDive: "The event was precipitated by a sharp downturn in the Cuban economy. While many sought freedom, the Castro regime also used the opportunity to empty its prisons and mental hospitals, creating a complex social and political situation for the U.S. and the refugee community, as per the State Department report C-988.", nextTarget: "All fragments acquired. Proceed to final debriefing." }
+    ];
+    
+    const answers = ['L', 'I', 'B', 'E', 'R', 'T', 'A', 'D'];
+    const hints = [
+        ["The information you need is written somewhere on the statue itself.", "Look closely at the vibrant colors of the rooster's tail feathers.", "The famous name of the street is written there. The first word is 'CALLE'."],
+        ["The missing word is part of a larger phrase on the mural.", "The word is a synonym for 'main city' or 'headquarters'.", "The missing word is 'CAPITAL'."],
+        ["The word you're looking for is at the very top of the monument.", "It is the four-letter name of the island nation being honored.", "The word is 'CUBA'."],
+        ["The quote is in Spanish, etched below the map.", "Look for the name of the author, José Martí, to identify the quote.", "The third word of the quote is 'es'."],
+        ["The mural features a woman dancing.", "Focus on the main color of her clothing.", "The primary color of her dress is red."],
+        ["The title you seek is a Spanish word on the bronze plaque.", "This title is given to someone who liberates their people.", "The word is 'LIBERTADOR'."],
+        ["The sign is white, oval-shaped, and hangs above the sidewalk.", "It advertises a product from a specific plant.", "The word you're looking for is 'TOBACCO'."],
+        ["You're looking for a collage inside the exhibit, upstairs.", "It has a very specific newspaper clipping on it to identify it.", "Find the boat name that ends with the Roman numeral 'II'."]
+    ];
+    let hintCounters = [0, 0, 0, 0, 0, 0, 0, 0];
+    let cameraStream = null;
+
+    // This function builds the HTML for a single page (used for cover, briefing, and objectives)
+    function buildPageHtml(pageInfo) {
+        const pageIndex = pageData.indexOf(pageInfo);
+        
+        let nextArrowHtml;
+        // This targets Objective 8 (pageData index 9, objectiveData index 7).
+        // It will link to the new static 'page-final-debrief'.
+        if (pageInfo.type === 'objective' && pageInfo.index === 7) { 
+            nextArrowHtml = `<a id="next-arrow-${pageInfo.index}" class="nav-arrow proceed-btn-style hidden" onclick="showFinalDebriefPage()">Final Debriefing ></a>`; 
+        } else if (pageInfo.type === 'objective') { // For other objectives
+            nextArrowHtml = `<a id="next-arrow-${pageInfo.index}" class="nav-arrow proceed-btn-style" onclick="showPage(${pageIndex + 1})">Next Mission ></a>`; 
+        } else if (pageInfo.type === 'briefing') { // Briefing page's next button
+            const firstObjIndex = pageData.findIndex(p => p.type === 'objective' && p.index === 0);
+            nextArrowHtml = `<a class="nav-arrow" onclick="showPage(${firstObjIndex})">></a>`;
+        } else { // Cover page doesn't have a next arrow here, it has a start button
+            navArrows = ''; 
+            nextArrowHtml = ''; 
+        }
+
+        let pageContent = '';
+        let pageFooterFile = '';
+
+        if (pageInfo.type === 'cover') {
+            pageContent = `<div class="stamp">TOP SECRET</div><h1>OPERATION:<br>CALLE OCHO</h1><p style="text-align: center;">EYES ONLY // <span class="redacted">PROJECT AZUCAR</span></p><button id="start-mission-btn" onclick="showPage(1)">Begin Mission</button>`;
+            pageFooterFile = 'DOCID: 734-C8';
+        } else if (pageInfo.type === 'briefing') {
+            pageContent = `<h2>AGENT BRIEFING</h2><div id="briefing-text"><h3>How The Mission Works</h3><ul><li><strong>Start with the 'First Target' clue</strong> at the bottom of this briefing. This poem will lead you to your first physical location.</li><li><strong>Find the 'Your Task' section.</strong> Once you arrive at a location, read the task on that page. Complete it to discover a single letter-fragment of your final code word.</li><li><strong>Find the 'Next Target' clue.</strong> After you have your letter, read the coded message at the bottom of the page. This poem is your clue to find the <em>next</em> physical location.</li><li><strong>Repeat the process</strong> until you have recovered all 8 letter-fragments. Your final dossier contains everything you need. Good luck, Agent.</li></ul></div><hr class="section-divider"><h3>First Target:</h3><div class="coded-message">"Among the timeless cars, your search begins today, But look for where the dominoes are put on display. Your first contact stands there, a rooster proud and grand, With the flag of his homeland painted on him by hand. Find this patriot bird to receive your first command."</div>`;
+            pageFooterFile = 'FILE: C-O-8-BRIEFING';
+        } else if (pageInfo.type === 'objective') {
+            const obj = objectiveData[pageInfo.index];
+            pageContent = `
+                <h2>${obj.title}</h2>
+                <div class="tab-buttons">
+                    <button class="tab-link active" onclick="scrollToSection('task-header-${pageInfo.index}', this)">Your Task</button>
+                    <button class="tab-link" onclick="scrollToSection('intel-header-${pageInfo.index}', this)">Intel Dossier</button>
+                    <button class="tab-link" id="phototab-${pageInfo.index}" onclick="scrollToSection('photo-header-${pageInfo.index}', this)" disabled>Photo Log</button>
+                </div>
+                <div id="task-section-${pageInfo.index}">
+                    <h3 id="task-header-${pageInfo.index}">Your Task:</h3>
+                    <p>${obj.task}</p>
+                    <div class="fragment-box">
+                        <label>Recovered Fragment:</label>
+                        <div class="fragment-input-group">
+                            <input type="text" id="frag-input-${pageInfo.index}" class="fragment-input" maxlength="1">
+                            <button class="verify-btn" onclick="verifyAnswer(${pageInfo.index})">Verify</button>
+                        </div>
+                        <div id="feedback-${pageInfo.index}" class="feedback"></div>
+                        <div id="hint-container-${pageInfo.index}" class="hint-display"></div>
+                        <button class="hint-btn" id="hint-btn-${pageInfo.index}" onclick="requestHint(${pageInfo.index})">Request Hint</button>
+                    </div>
+                </div>
+                <hr class="section-divider">
+                <div id="intel-section-${pageInfo.index}">
+                     <h3 id="intel-header-${pageInfo.index}">Intel Dossier:</h3>
+                    <p>${obj.briefing}</p>
+                    <details>
+                        <summary>[+] Access Archival Records</summary>
+                        <p>${obj.deepDive}</p>
+                    </details>
+                </div>
+                <hr class="section-divider">
+                <div id="photo-section-${pageInfo.index}">
+                    <h3 id="photo-header-${pageInfo.index}">Photographic Evidence</h3>
+                    <div id="evidence-container-${pageInfo.index}">
+                         <p><em>This section is locked. Verify the fragment to unlock the photo log.</em></p>
+                    </div>
+                </div>
+                <hr class="section-divider">
+                <h3>Next Target:</h3>
+                <div class="coded-message">${obj.nextTarget}</div>`;
+            pageFooterFile = `FILE: C-O-8-OBJ${pageInfo.index + 1}`;
+        }
+
+        let navArrowsHtml = '';
+        // Back arrow for all pages except the cover page
+        if (pageIndex > 0) {
+            navArrowsHtml += `<a class="nav-arrow" onclick="showPage(${pageIndex - 1})">&lt;</a>`;
+        }
+        navArrowsHtml += nextArrowHtml; // Add the specific next arrow/button HTML (could be empty for cover)
+
+
+        return `
+            <div id="page-${pageIndex}" class="page ${pageIndex === 0 ? '' : 'hidden'}">
+                ${pageContent}
+                <div class="nav-container">
+                    ${navArrowsHtml}
+                </div>
+                <div class="page-footer">${pageFooterFile}</div>
+            </div>`;
+    }
+
+    function buildAllPages() {
+        try {
+            // Dynamically build all pages (0-9) and inject them into dossierContainer
+            dossierContainer.innerHTML = pageData.map(page => buildPageHtml(page)).join('');
+            console.log("[buildAllPages] All dynamic pages (0-9) built and inserted into dossier-container.");
+            
+            // Manually ensure the static final debrief page is hidden on load
+            const finalDebriefPageEl = document.getElementById('page-final-debrief');
+            if (finalDebriefPageEl) {
+                finalDebriefPageEl.classList.add('hidden');
+                console.log("[buildAllPages] Ensured static final debrief page is hidden on load.");
+            } else {
+                console.warn("[buildAllPages] Static final debrief page (page-final-debrief) not found on load. It might be missing from HTML.");
+            }
+        } catch (e) {
+            console.error("[buildAllPages] ERROR during page building:", e);
+            alert("An error occurred during page setup. Please check the console for details.");
+        }
+    }
+
+    // NEW FUNCTION: Directly shows the final debrief page (called by Obj 8 button)
+    function showFinalDebriefPage() {
+        try {
+            // Hide the current active page (Objective 8 in this case, which is page-9)
+            const currentPageEl = document.getElementById(`page-${currentPage}`);
+            if (currentPageEl) {
+                currentPageEl.classList.add('hidden');
+                console.log(`[showFinalDebriefPage] Hid current page: page-${currentPage}`);
+            } else {
+                console.warn(`[showFinalDebriefPage] Current page element page-${currentPage} not found to hide.`);
+            }
+
+            // Show the static final debrief page
+            const finalDebriefPageEl = document.getElementById('page-final-debrief');
+            if (finalDebriefPageEl) {
+                finalDebriefPageEl.classList.remove('hidden');
+                console.log("[showFinalDebriefPage] Showed static final debrief page.");
+                window.scrollTo(0, 0); // Scroll to top
+                generateCollage(); // Call generateCollage to populate photos
+            } else {
+                console.error("[showFinalDebriefPage] ERROR: Static final debrief page (page-final-debrief) not found! Cannot navigate.");
+                alert("Critical error: Final debriefing page could not be found.");
+            }
+
+            currentPage = 'final-debrief'; // Update currentPage to reflect being on this special page
+        } catch (e) {
+            console.error("[showFinalDebriefPage] ERROR during final page display:", e);
+            alert("An error occurred trying to show the final page. Check console.");
+        }
+    }
+
+
+    // The core showPage function for regular numeric pages
+    function showPage(pageNumber) {
+        try {
+            console.log(`[showPage] Attempting to show page: ${pageNumber}`); 
+            // Ensure pageNumber is valid
+            if (pageNumber < 0 || pageNumber >= totalPages) { 
+                console.warn(`[showPage] Invalid page number ${pageNumber}. Total dynamic pages: ${totalPages}.`); 
+                return;
+            }
+
+            // Hide current active page (could be a numeric page or the final-debrief page)
+            let currentActivePageEl;
+            if (currentPage === 'final-debrief') {
+                currentActivePageEl = document.getElementById('page-final-debrief');
+            } else {
+                currentActivePageEl = document.getElementById(`page-${currentPage}`);
+            }
+
+            if (currentActivePageEl) {
+                currentActivePageEl.classList.add('hidden');
+                console.log(`[showPage] Hid page: page-${currentPage}`); 
+            } else {
+                 console.warn(`[showPage] Current page element page-${currentPage} not found to hide.`);
+            }
+
+            // Show next page
+            const nextPageEl = document.getElementById(`page-${pageNumber}`);
+            if (nextPageEl) {
+                nextPageEl.classList.remove('hidden');
+                console.log(`[showPage] Showed page: page-${pageNumber}`); 
+                window.scrollTo(0, 0); 
+            } else {
+                console.error(`[showPage] ERROR: Could not find page element for page-${pageNumber}. This is critical! The page likely wasn't built correctly.`); 
+                alert(`Error: Page ${pageNumber} not found. Game flow interrupted.`);
+            }
+
+            currentPage = pageNumber;
+        } catch (e) {
+            console.error(`[showPage] ERROR displaying page ${pageNumber}:`, e);
+            alert("An error occurred during page navigation. Check console for details.");
+        }
+    }
+
+    function scrollToSection(elementId, tabElement) {
+        try {
+            const element = document.getElementById(elementId);
+            if (element) {
+                const tabButtons = tabElement.parentElement;
+                tabButtons.querySelectorAll('.tab-link').forEach(link => link.classList.remove('active'));
+                tabElement.classList.add('active');
+                
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                console.warn(`[scrollToSection] Element ${elementId} not found.`);
+            }
+        } catch (e) {
+            console.error(`[scrollToSection] ERROR for element ${elementId}:`, e);
+        }
+    }
+
+    function verifyAnswer(objectiveIndex) {
+        try {
+            const input = document.getElementById(`frag-input-${objectiveIndex}`);
+            const feedback = document.getElementById(`feedback-${objectiveIndex}`);
+
+            if (!input || !feedback) { 
+                console.error(`[verifyAnswer] Input or feedback element missing for objective ${objectiveIndex}.`);
+                return;
+            }
+
+            if (input.value.trim().toUpperCase() === answers[objectiveIndex]) {
+                feedback.textContent = 'Correct! Fragment Recovered.';
+                feedback.className = 'feedback feedback-correct';
+                input.disabled = true;
+                input.style.backgroundColor = '#e0f2e9';
+                
+                const verifyBtn = input.closest('.fragment-input-group').querySelector('.verify-btn');
+                if (verifyBtn) verifyBtn.style.display = 'none';
+
+                const hintBtn = document.getElementById(`hint-btn-${objectiveIndex}`);
+                if (hintBtn) hintBtn.style.display = 'none';
+
+                const photoTab = document.getElementById(`phototab-${objectiveIndex}`);
+                if (photoTab) {
+                    photoTab.disabled = false;
+                    photoTab.innerHTML = "Photo Log ✔";
+                    photoTab.style.color = 'var(--correct-color)';
+                } else {
+                    console.warn(`[verifyAnswer] Photo tab not found for objective ${objectiveIndex}.`);
+                }
+
+                const evidenceContainer = document.getElementById(`evidence-container-${objectiveIndex}`);
+                if (evidenceContainer) {
+                    evidenceContainer.innerHTML = `<details><summary style="font-weight:bold; color:var(--correct-color);">[+] Photographic Evidence Log Unlocked</summary><p><em>Take a <strong>selfie</strong> at this location to document your mission. This evidence will be added to your final collage.</em></p><button class="evidence-btn" onclick="startCamera(${objectiveIndex})">[+] Log Evidence Photo</button></details>`;
+                } else {
+                    console.warn(`[verifyAnswer] Evidence container not found for objective ${objectiveIndex}.`);
+                }
+            
+                const nextArrow = document.getElementById(`next-arrow-${objectiveIndex}`);
+                if (nextArrow) {
+                    if (objectiveIndex === 7) { // This is Objective 8 (last dynamic page)
+                        nextArrow.classList.remove('hidden'); // Make the Final Debriefing button visible
+                        console.log(`[verifyAnswer] Objective ${objectiveIndex} verified. Final Debriefing arrow is now visible.`); 
+                    }
+                } else {
+                    console.warn(`[verifyAnswer] Objective ${objectiveIndex} verified, but could not find next-arrow-${objectiveIndex} element.`); 
+                }
+
+            } else {
+                feedback.textContent = 'Incorrect. Check Intel and Re-try.';
+                feedback.className = 'feedback feedback-incorrect';
+            }
+        } catch (e) {
+            console.error(`[verifyAnswer] ERROR for objective ${objectiveIndex}:`, e);
+            alert("An error occurred during answer verification. Check console for details.");
+        }
+    }
+
+    function requestHint(objectiveIndex) {
+        try {
+            const hintContainer = document.getElementById(`hint-container-${objectiveIndex}`);
+            const hintButton = document.getElementById(`hint-btn-${objectiveIndex}`);
+
+            if (!hintContainer || !hintButton) { 
+                console.error(`[requestHint] Hint container or button missing for objective ${objectiveIndex}.`);
+                return;
+            }
+
+            const currentHintCount = hintCounters[objectiveIndex];
+
+            if (currentHintCount < 3) {
+                const p = document.createElement('p');
+                p.innerHTML = `<strong>Hint ${currentHintCount + 1}:</strong> ${hints[objectiveIndex][currentHintCount]}`;
+                hintContainer.appendChild(p);
+                hintCounters[objectiveIndex]++;
+                if (hintCounters[objectiveIndex] === 3) {
+                    hintButton.textContent = 'Reveal Answer';
+                }
+            } else {
+                const input = document.getElementById(`frag-input-${objectiveIndex}`);
+                if (input) {
+                    input.value = answers[objectiveIndex];
+                    verifyAnswer(objectiveIndex);
+                } else {
+                    console.warn(`[requestHint] Input element missing for objective ${objectiveIndex} during reveal.`);
+                }
+            }
+        } catch (e) {
+            console.error(`[requestHint] ERROR for objective ${objectiveIndex}:`, e);
+        }
+    }
+    
+    // --- Camera & Photo Logic ---
+    let currentObjectiveIndexForPhoto = -1;
+
+    async function startCamera(objectiveIndex) {
+        try {
+            currentObjectiveIndexForPhoto = objectiveIndex;
+            const modal = document.getElementById('camera-modal');
+            const video = document.getElementById('camera-view');
+            
+            if (!modal || !video) { 
+                console.error("[startCamera] Camera modal or video element not found.");
+                alert("Camera functionality elements are missing.");
+                return;
+            }
+
+            document.getElementById('photo-preview').classList.add('hidden');
+            document.getElementById('approval-controls').classList.add('hidden');
+            document.getElementById('camera-view').classList.remove('hidden');
+            document.getElementById('capture-controls').classList.remove('hidden');
+
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+            video.srcObject = cameraStream;
+            modal.classList.add('active');
+            
+            document.getElementById('capture-btn').onclick = () => capturePreview();
+            document.getElementById('retake-btn').onclick = () => retakePhoto();
+        } catch (err) {
+            console.error("[startCamera] ERROR accessing camera:", err);
+            alert("Camera access denied or failed. Please enable camera access in your browser settings to use this feature.");
+        }
+    }
+
+    function capturePreview() {
+        try {
+            const canvas = document.getElementById('photo-canvas');
+            const video = document.getElementById('camera-view');
+            const preview = document.getElementById('photo-preview');
+            const context = canvas.getContext('2d');
+
+            if (!canvas || !video || !preview || !context) { 
+                console.error("[capturePreview] Canvas, video, or preview element missing.");
+                alert("Error capturing photo: display elements missing.");
+                return;
+            }
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            preview.src = dataUrl;
+
+            video.classList.add('hidden');
+            document.getElementById('capture-controls').classList.add('hidden');
+            preview.classList.remove('hidden');
+            document.getElementById('approval-controls').classList.remove('hidden');
+            
+            document.getElementById('confirm-btn').onclick = () => savePhoto(currentObjectiveIndexForPhoto, dataUrl);
+        } catch (e) {
+            console.error("[capturePreview] ERROR during photo capture:", e);
+            alert("An error occurred capturing the photo. Check console.");
+        }
+    }
+
+    function retakePhoto() {
+        try {
+            document.getElementById('photo-preview').classList.add('hidden');
+            document.getElementById('approval-controls').classList.add('hidden');
+            document.getElementById('camera-view').classList.remove('hidden');
+            document.getElementById('capture-controls').classList.remove('hidden');
+        } catch (e) {
+            console.error("[retakePhoto] ERROR during retake:", e);
+        }
+    }
+
+    function savePhoto(objectiveIndex, dataUrl) {
+        try {
+            localStorage.setItem(`evidence_photo_${objectiveIndex}`, dataUrl);
+            stopCamera();
+            const evidenceContainer = document.getElementById(`evidence-container-${objectiveIndex}`);
+            if (evidenceContainer) {
+                evidenceContainer.innerHTML = `<p style="color:var(--correct-color); font-weight:bold;">✔ Photographic Evidence Logged. It will appear in your final debriefing.</p>`;
+            } else {
+                console.warn(`[savePhoto] Evidence container not found for objective ${objectiveIndex}.`);
+            }
+        } catch (e) {
+            console.error(`[savePhoto] ERROR saving photo for objective ${objectiveIndex}:`, e);
+        }
+    }
+
+    function stopCamera() {
+        try {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+            const modal = document.getElementById('camera-modal');
+            if (modal) modal.classList.remove('active');
+        } catch (e) {
+            console.error("[stopCamera] ERROR stopping camera:", e);
+        }
+    }
+
+    // generateCollage: Now populates the basic photo collage AND controls PDF button visibility
+    function generateCollage() {
+        try {
+            const container = document.getElementById('photo-collage-container');
+            const downloadBtn = document.getElementById('download-pdf-btn');
+
+            if (!container || !downloadBtn) {
+                console.error("Photo collage container or download button not found for generateCollage!");
+                return;
+            }
+
+            container.innerHTML = ''; 
+            let photoCount = 0;
+            for (let i = 0; i < 8; i++) { // Loop through all 8 objectives
+                const photoData = localStorage.getItem(`evidence_photo_${i}`);
+                let itemHtml = '';
+                if (photoData) {
+                    itemHtml = `<img src="${photoData}" alt="Evidence Photo ${i+1}">`;
+                    photoCount++;
+                } else {
+                    itemHtml = `<div class="placeholder">[EVIDENCE LOG ${i+1} :: NO DATA]</div>`;
+                }
+                container.innerHTML += itemHtml;
+            }
+
+            // Show download button only if there's at least one photo
+            if (photoCount > 0) {
+                downloadBtn.style.display = 'block';
+            } else {
+                downloadBtn.style.display = 'none';
+            }
+            console.log(`[generateCollage] Collage generated with ${photoCount} photos. Download button visibility set.`);
+        } catch (e) {
+            console.error("[generateCollage] ERROR during collage generation:", e);
+        }
+    }
+
+    // RESTORED: downloadCollageAsPDF function
+    function downloadCollageAsPDF(){
+        try {
+            const collage = document.getElementById("photo-collage-container");
+            const btn = document.getElementById("download-pdf-btn");
+            if (!collage || !btn) {
+                console.error("Collage container or download button missing for PDF generation.");
+                alert("Could not generate PDF: necessary elements are missing.");
+                return;
+            }
+
+            btn.textContent = "Preparing PDF...";
+            btn.disabled = true;
+
+            html2canvas(collage, { scale: 2, useCORS: true, backgroundColor: null }).then(canvas => {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                const ratio = canvasWidth / canvasHeight;
+                let imgWidth = pdfWidth - 20; // 10mm margin on each side
+                let imgHeight = imgWidth / ratio;
+                
+                // Adjust height if it exceeds available page height, maintaining aspect ratio
+                if (imgHeight > pdfHeight - 40) { // 20mm margin top/bottom
+                    imgHeight = pdfHeight - 40;
+                    imgWidth = imgHeight * ratio;
+                }
+                
+                const x = (pdfWidth - imgWidth) / 2; // Center horizontally
+                const y = 20; // Start 20mm from top
+
+                const imgData = canvas.toDataURL('image/jpeg'); 
+
+                pdf.setFontSize(22);
+                pdf.setFont(undefined, 'bold');
+                pdf.text("Operation: Calle Ocho - Mission Evidence", pdfWidth / 2, y - 5, { align: "center" });
+                pdf.addImage(imgData, 'JPEG', x, y, imgWidth, imgHeight);
+                pdf.save('operation-calle-ocho-evidence.pdf');
+                
+                btn.textContent = "Download Mission Souvenir (PDF)";
+                btn.disabled = false;
+                console.log("[downloadCollageAsPDF] PDF generated successfully.");
+            }).catch(error => {
+                console.error("[downloadCollageAsPDF] Error generating PDF:", error);
+                alert("Could not generate PDF. Please try again later. Check console for details.");
+                btn.textContent = "Download Mission Souvenir (PDF)";
+                btn.disabled = false;
+            });
+        } catch (e) {
+            console.error("[downloadCollageAsPDF] Uncaught error in PDF function:", e);
+            alert("An unexpected error occurred during PDF generation. Check console.");
+        }
+    }
+
+
+    // Initial setup
+    function initGame() {
+        try {
+            // Build all dynamic pages (0-9) and inject them into dossierContainer
+            buildAllPages(); 
+            
+            // Start on the cover page (page-0). It is already visible by default due to CSS.
+            // No need for a showPage(0) call here.
+            console.log("[initGame] Game initialized. Cover page should be visible.");
+        } catch (e) {
+            console.error("[initGame] FATAL ERROR during game initialization:", e);
+            alert("The game failed to start. Please check the console for critical errors.");
+        }
+    }
+    document.addEventListener('DOMContentLoaded', initGame); 
+</script>
+</body>
+</html>
